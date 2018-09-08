@@ -1,0 +1,104 @@
+;;; LEGATO.CAL
+; (REVISED BY Rogério Dec - 08/30/2018)
+;;;
+;;; Courtesy of Sergio Blostein.
+;;;
+;;; This program makes legato.
+;;;
+;;; Prolog
+(do
+	(message "This program makes legato ... please wait ...") 
+	(int count 0) 
+	(int percent 100)
+	(dword t1 0) 
+	(dword t2 0)
+	(dword t3 -1)
+	(getInt percent "Legato percentage:" 1 200) 
+	(forEachEvent
+		(do
+			(if (== Event.Kind NOTE)
+				(do	
+					(if (== Event.Time 0)
+						(= Event.Time 1)
+					)						
+					(if (== count 0)
+						(do
+							(++ count)
+							(= t1 Event.Time)
+						) 
+						(if (!= Event.Time t3)
+							(do	
+								(= t2 (- Event.Time t1)) 
+								(= t1 Event.Time)
+								(= t3 Event.Time)
+								(if (&& (!= t2 0) (!= (index) 0))
+									(do
+										(++ count)
+										(insert (- (- Event.Time t2) 1) 0 NOTE 0 0 (- t2 1))
+									) 
+								)
+							)
+						)
+					)	
+				)
+			)
+		)
+	)
+	(= count 0) 
+	(= t1 0) 
+	(= t2 0)
+	(int flag 0)
+	(+= From 1) ; flush previous "foreach" buffer
+	(-= From 1)
+	(if (> From 0)
+		(-= From 1)
+	)
+
+	(forEachEvent	
+		(do
+		(if (== Event.Kind NOTE)
+			(if (== Note.Key 0)
+				(do	
+					(= t2 Event.Time)
+					(= t1 (+ Note.Dur 1))
+					(*= t1 percent)
+					(/= t1 100)
+					(delete)
+					(++ count)
+				)
+				(if (== (- Event.Time 1) t2);;abre if
+					(do
+						(if (== Event.Time 1)
+							(= Event.Time 0)	
+						) 
+						(if (== Event.Time 0)	
+							(= Note.Dur t1)
+							(= Note.Dur (- t1 1))
+						)
+					)
+				);;cierra if
+			)
+		);;cierra eventKind
+	)
+ );;cierra forEachEvent		
+ (message "CAL program developed by Sergio Blostein")
+ (delay 750)
+ (message count "notes durations articulated.") 
+ (delay 1250)
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

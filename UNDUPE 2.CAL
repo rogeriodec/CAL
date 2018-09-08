@@ -1,0 +1,46 @@
+; UNDUPE.CAL
+; (REVISED BY Rogério Dec - 08/28/2018)
+; Remove duplicated events
+; Maybe by Miguel Ratton
+; prolog expression
+(do
+	(int		lastKind 0)
+	(dword	lastTime 0)
+	(int		lastKey 0)
+	(int		nDeleted 0)
+	(int		timeWindow 0)
+
+	(getInt timeWindow "Window for time identity:" 0 TIMEBASE)
+	(++ timeWindow)
+	(/= timeWindow 2)
+)
+
+; body expression - evaluated once for each selected event
+(do
+	(if (== Event.Kind NOTE)
+		(do
+			(if (== lastKind Event.Kind)
+				(do
+					(if (&& (>= Event.Time (- lastTime timeWindow)) (<= Event.Time (+ lastTime timeWindow)))
+						(if (== Note.Key lastKey)
+							(do
+								(delete)
+								(++ nDeleted)
+							)
+						)
+					)
+				) 
+			)
+			(= lastKey Note.Key)
+		)
+	)
+
+	(= lastKind Event.Kind)
+	(= lastTime Event.Time)
+)
+
+; epilog expression
+(do
+	(pause "Deleted " nDeleted " duplicate events.")
+)
+
