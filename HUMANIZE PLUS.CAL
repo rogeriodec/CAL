@@ -1,3 +1,16 @@
+; Rogerio Dec (sep-2018) - http://rogeriodec.com.br/en
+;
+; v 1.00
+; HUMANIZE PLUS.CAL 
+;
+; HUMANIZE PLUS.CAL has the following features:
+; 1) Changes the note velocity, time and/or length, based on an informed random range;
+; 2) Slides any current CC (1 = modulation, 11 = expression, etc) time and changes its values based on informed parameters;
+; ... or ...
+; 3) Creates a random sequence of ModWheel or CC which are interpolated by an algorithm of POLYNOMIAL BICUBIC INTERPOLATION.
+;
+; More info: http://forum.cakewalk.com/New-SUPER-CAL-Script-HUMANIZE-PLUSCAL-m3782620.aspx
+
 (do
  	(long maxDispNote 0)
 	(long maxLenNote 0)
