@@ -1,0 +1,306 @@
+(do
+ 	(long maxDispNote 0)
+	(long maxLenNote 0)
+	(long minControlVal 0)
+	(long maxControlVal 0)
+	(int ControlNum 0)
+	(int ControlValue)
+	(int lastCCval -1)
+	(int apply 0)
+	(long stepControlKey 500)
+	(long stepControlInt 1)
+	(long i 0)
+	(long ii 9999)
+	(long currentTime 0)
+	(long lastTime)
+	(long noteEndTime 0)
+	(long blockEndTime 0)
+	(long ControlCount 0)
+	(long endEvents)
+	(long channelNoteBeginBlock)
+	(long timeNoteBeginBlock)
+	(dword aTime 0)
+	(dword bTime 0)
+
+	(long totControlBlock 0)
+	(long totControlBlock2)
+	(long a0)
+	(long a1)
+	(long a2)
+	(long a3)
+	(long d1)
+	(long d2)
+	(long stepInterpControl)
+	(long t)
+	(long tt)
+	(long ttt)
+	(long ControlPointTime1)
+	(long ControlPointValue1)
+	(long ControlPointTime2)
+	(long ControlPointValue2)
+	(long ControlPointTime3)
+	(long ControlPointValue3)
+	(long ControlPointTime4)
+	(long ControlPointValue4)
+	(long InterPointTime1)
+	(long InterPointValue1)
+	(long InterPointTime2)
+	(long InterPointValue2)
+	(long InterPointTime3)
+	(long InterPointValue3)
+	(long InterPointTime4)
+	(long InterPointValue4)
+	(long InterPointTimeMain)
+	(long InterPointTimeMain2 0)
+	(long InterPointValueMain)
+	(long stepInt 0)
+	(long stepInt2 0)
+	(long last127 0)
+	(int variVel 0)
+	(int limMinControlVal)
+	(int limMaxControlVal)
+	(int addCCvalue 0)
+	(int addCCtime 0)
+	(int createCC 0)
+
+	;  ----------------------------- get parameter from user  --------------------
+	(getInt apply "(1) = Apply Humanize only to NOTES, (2) = apply only to ModWheel/CC#, (3) = apply to Both" 1 3)
+	(if (|| (== apply 1) (== apply 3))
+		(do
+			(getInt variVel "NOTES: Additional random note VELOCITY (+/- 0 to 127):" 0 127)
+		 	(getInt maxDispNote "NOTES: Additional random TIME for NOTES in ticks (+/- 0 to 10000):" 0 10000)
+		 	(getInt maxLenNote "NOTES: Additional random LENGH variation for NOTES in ticks ( +/- 0 to 10000):" 0 10000)
+		 )
+	)
+	(if (|| (== apply 2) (== apply 3))
+ 		(getInt ControlNum "CC# or ModWheel to create values (-1 = ModWheel, 0 = NONE, 1 to 126 = CC):" -1 126)
+ 	)
+ 	(if (> ControlNum 0) ; CC#
+ 		(do
+		 	(getInt createCC "CC: (1) = Create new CC random series, (0) = update current CC:" 0 1)
+		 	(if (== createCC 0)
+		 		(do
+		 			(getInt addCCtime "CC: Slide TIME for current CC in ticks (-10000 to 10000):" -10000 10000)
+		 			(getInt addCCvalue "CC: Number to Add/Subtract to/from current CC VALUE (0 = NONE, +/- 0 to 127):" -127 127)
+		 		)
+		 		(do ; ELSE
+					(getInt minControlVal "CC: Min CC VALUE to create random series (0 to 127):" 0 127)
+					(getInt maxControlVal "CC: Max CC VALUE to create random series (0 to 127):" 0 127) 
+				)
+				; (= maxDispNote (random (* maxDispNote -1) maxDispNote)) ; ELSE
+			)
+			(= limMinControlVal 0)
+			(= limMaxControlVal 127)
+		)
+	) 
+ 	(if (< ControlNum 0) ; WHEEL
+ 		(do
+			(getInt minControlVal "WHEEL: Min ModWheel VALUE (-8192 to 0):" -8192 0)
+			(getInt maxControlVal "WHEEL: Max ModWheel VALUE (0 to 8191):" 0 8191) 
+			(= limMinControlVal -8192)
+			(= limMaxControlVal 8191)
+		)
+	) 
+
+	(if (|| (== createCC 1) (< ControlNum 0))
+		(do
+			(getInt stepControlKey "CC/WHEEL: Ticks between Control/ModWheel key events (100 to 5000):" 100 5000) 
+			(getInt stepControlInt "CC/WHEEL: Average Ticks between Control/ModWheel interpolation events (1 to 5000):" 1 5000)
+		)
+	)
+
+
+	(*= stepControlInt 10)
+	; --------- erase all previous Control and randomize note length, time and velocity (inside selection) ---------
+	(-- aTime) ; force the highest value
+    (forEachEvent
+    	(do
+	        (if (&& (== createCC 1)  (|| (&& (< ControlNum 0) (== Event.Kind WHEEL)) (&& (== Control.Num ControlNum) (== Event.Kind CONTROL))))
+	        	(delete) ; delete Control
+	    	)
+	    	(if (&& (&& (== createCC 0) (== Event.Kind CONTROL)) (== Control.Num ControlNum))
+	    		(do
+		        	(= a0 (+ Event.Time addCCtime)) ; cc position
+		        	(if (< a0 0)
+		        		(delete)
+			        	(do ; ELSE
+				        	(= bTime a0)
+				        	(= Event.Time bTime)
+			        		(if (< bTime aTime) ; save the shortest time found
+			        			(= aTime bTime)
+			        		)
+			    			(= a0 (+ Control.Val addCCvalue))
+			    			(if (< a0 0)
+			    				(= a0 0)
+			    			)
+			    			(if (> a0 127)
+			    				(= a0 127)
+			    			)
+			    			(= Control.Val a0) ; cc value
+			    			(if (== lastCCval a0) ; remove repeated cc value
+			    				(delete)
+			    			)
+			        		(= lastCCval a0)
+			        		(if (< bTime aTime) ; save the shortest time found
+			        			(= aTime bTime)
+			        		)
+			        	)
+		        	)
+	    		)
+	    	)
+	        (if (== Event.Kind NOTE)
+	        	(do
+		        	(= a0 (+ Note.Dur (random (* maxLenNote -1) maxLenNote))) ; note duration
+		        	(if (<= a0 1)
+		        		(= a0 1)
+		        	)
+		        	(= Note.Dur a0)
+		        	(= a0 (+ Event.Time (random (* maxDispNote -1) maxDispNote))) ; note position
+		        	(if (<= a0 0)
+		        		(= a0 1)
+		        	)
+		        	(= bTime a0)
+		        	(= Event.Time bTime)
+	        		(if (< bTime aTime) ; save the shortest time found
+	        			(= aTime bTime)
+	        		)
+	        		(= a0 (+ Note.Vel (random (* variVel -1) variVel))) ; note velocity
+	        		(if (> a0 127)
+	        			(= a0 127)
+	        		)
+	        		(if (< a0 0)
+	        			(= a0 0)
+	        		)
+	        		(= Note.Vel a0)
+		        )
+	    	)
+	    )
+    )
+
+    (if (|| (< ControlNum 0) (== createCC 1)) ; mw or cc
+    	(do
+			(= From aTime) ; flush previous "foreach" buffer
+
+		 	; ----------------------------- create Control (control points) events --------------------
+		    (forEachEvent
+		        (if (== Event.Kind NOTE)
+		        	(do
+						(= noteEndTime (+ Event.Time Note.Dur))
+						(if (< currentTime (+ Event.Time 1)) ;  end of block of notes
+							(do
+								(if (> currentTime 0) 
+									(do
+										;  127 = block marker, with total of Control (control points) events in block
+										(insert (- timeNoteBeginBlock 1) channelNoteBeginBlock CONTROL 127 0) 
+										(insert (- timeNoteBeginBlock 1) channelNoteBeginBlock WHEEL ControlCount)
+										(= ControlCount 0)
+									)
+								)
+								(do
+									(= channelNoteBeginBlock Event.Chan) ;  get channel 
+									(= timeNoteBeginBlock Event.Time) ;  get time from the first note of block
+									(= currentTime Event.Time)
+								)
+							)
+						)
+						(if (< blockEndTime noteEndTime)
+							(= blockEndTime noteEndTime)
+						)
+
+						(while (< currentTime (+ blockEndTime stepControlKey)) 
+							(do
+								(= ControlValue (random minControlVal maxControlVal))
+								(if (> ControlValue limMaxControlVal) ; prevents it from exceeding the limit of Control value
+									(= ControlValue limMaxControlVal)
+								)
+								(if (< ControlValue limMinControlVal)
+									(= ControlValue limMinControlVal)
+								)
+								(if (< ControlNum 0)
+									(insert currentTime channelNoteBeginBlock WHEEL ControlValue)
+									(insert currentTime channelNoteBeginBlock CONTROL ControlNum ControlValue) ; ELSE
+								)
+								(= lastTime currentTime)
+								(+= currentTime stepControlKey)
+								(++ ControlCount)
+							)
+						)
+					)
+				)
+			)
+			
+		    (if (<= timeNoteBeginBlock 0)
+		    	(= timeNoteBeginBlock 1)
+		    )
+			(insert (- timeNoteBeginBlock 1) channelNoteBeginBlock WHEEL ControlCount)
+			(insert (- timeNoteBeginBlock 1) channelNoteBeginBlock CONTROL 127 0) ; mark of last block
+			(insert (+ (- currentTime stepControlKey) 1) channelNoteBeginBlock CONTROL 127 0) ; final mark for all blocks
+
+			(-= From 1) ; flush previous "foreach" buffer
+			(+= Thru stepControlKey)
+			; (pause "currentTime " currentTime " stepControlKey " stepControlKey)
+
+		; 	-------------------- (begin) POLYNOMIAL BICUBIC INTERPOLATION ------------------------
+
+		    (forEachEvent
+		    	(do
+		    		(if (< ControlNum 0)
+		    			(= ControlValue Wheel.Val)
+		    			(= ControlValue Control.Val) ; ELSE
+		    		)
+			        (if (&& (== Event.Kind CONTROL) (== Control.Num 127))
+			        	(do
+				 			(if (!= totControlBlock 0) 
+				 				(do
+					 				(while (<= stepInterpControl (* (- totControlBlock 1) 1000))
+										(include "HUMANIZE PLUS-inc.cal")
+									)
+								)
+							)
+		 					(= last127 1)
+		 					(delete)
+		 				)
+						(if (== last127 1) ; ** ELSE **
+							(do 
+								(= last127 0)
+								(= totControlBlock Wheel.Val) ;  count of Control inside block
+								(= totControlBlock2 (* totControlBlock  2))
+								(= channelNoteBeginBlock Event.Chan) ;  get channel 
+								(= ControlCount 0)
+								(= stepInterpControl stepControlInt)
+								(delete) ;  deleta Control mark
+							)
+							(if (|| (&& (< ControlNum 0) (== Event.Kind WHEEL)) (&& (&& (> ControlNum 0) (== Event.Kind CONTROL)) (== Control.Num ControlNum))) ; ** ELSE **
+								(do
+									(++ ControlCount)
+									(switch ControlCount
+										1 (do ; save the first 4 Control
+											(= ControlPointTime1 Event.Time)
+											(= ControlPointValue1 ControlValue)
+										)
+										2 (do
+											(= ControlPointTime2 Event.Time)
+											(= ControlPointValue2 ControlValue)
+										)
+										3 (do
+											(= ControlPointTime3 Event.Time)
+											(= ControlPointValue3 ControlValue)
+										)
+										4 (do
+											(= ControlPointTime4 Event.Time)
+											(= ControlPointValue4 ControlValue)
+										)
+									)
+									(if (> ControlCount 4)
+										(include "HUMANIZE PLUS-inc.cal")
+									)
+								)
+							)
+						)
+					)
+				)
+			)
+		)
+	)
+)
+; 		-------------------- (end) POLYNOMIAL BICUBIC INTERPOLATION ------------------------
